@@ -1,0 +1,48 @@
+name: Build LocalDrop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            flags: --onefile
+          - os: macos-latest
+            flags: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pyinstaller qrcode
+
+      - name: Build the app
+        run: python -m PyInstaller --windowed --name LocalDrop ${{ matrix.flags }} localdrop_app.py
+
+      - name: Zip the Mac app
+        if: runner.os == 'macOS'
+        run: cd dist && ditto -c -k --keepParent LocalDrop.app LocalDrop-Mac.zip
+
+      - name: Save Windows app
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalDrop-Windows
+          path: dist/LocalDrop.exe
+
+      - name: Save Mac app
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalDrop-Mac
+          path: dist/LocalDrop-Mac.zip
